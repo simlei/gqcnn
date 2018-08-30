@@ -1,0 +1,68 @@
+layout_init here "$mod_catkin_root"
+evaltsb --register -c shellenv_interactive -p "$mod_gqcnn_root"
+
+
+training_scriptfile="$mod_gqcnn_root/custom/training.py"
+logs="$mod_gqcnn_root/custom/logs"
+
+export sunday_training="/home/simon/sandbox/graspitmod/catkin_ws/src/gqcnn/custom/output/model_qhgaezpqhn"
+export monday_training="/home/simon/sandbox/graspitmod/catkin_ws/src/gqcnn/custom/output/model_wzgokarujj"
+
+export dataset="$mod_gqcnn_root/custom/data/adv_synth"
+export gqcnn_train_stable_model="$monday_training"
+
+alias_addsource "$mod_gqcnn_root/custom/aliases.sh"
+alias_file_choose --reset
+
+
+path_add PYTHONPATH "$mod_gqcnn_root/custom"
+IPYTHONDIR="$mod_gqcnn_root/ipython"
+
+evalshell() {
+    ipython -i "$mod_gqcnn_root/custom/startup.ipython.py"
+}
+
+_training_do() {
+    local logfile="$logs/$(today).log"
+    log_error "logfile: '$logfile'"
+    ipython "$training_scriptfile" | tee "$logfile" 2>&1
+}
+training_new() {
+    gqcnn_train_main_modeldir='' _training_do
+}
+training_refine() {
+    gqcnn_train_main_modeldir="$(_parse_model_path_or_default "$@")" _training_do
+}
+training_diagram() {
+    local modelpath="$(_parse_model_path_or_default "$@")"
+    (
+        cd "$mod_gqcnn_root"
+        python tools/plot_training_losses.py "$modelpath"
+    )
+}
+training_tensorboard() {
+    xdg-open 'http://localhost:6006'
+}
+
+
+_parse_model_path_or_default() {
+    if [[ ! "$1" ]]; then
+        local modelpath="$(training_get_newest)"
+        echo "using model $modelpath" >&2
+    else
+        local modelpath="$1"
+    fi
+    if [[ ! -d "$modelpath" ]]; then
+        log_error "training output dir : '$modelpath' doesnt exist."
+        return 1
+    fi
+    echo "$modelpath"
+}
+
+training_get_newest() {
+    local outdir="$mod_gqcnn_root/custom/output"
+    local modelname="$(find "$outdir" -maxdepth 1 -type d -name 'model_*' -printf '%T@ %P\n' | sort -z -n | lambda -s time path : 'varecho path' | filter : '[[ $line ]]' | head -n 1)"
+    local modelpath="$outdir/$modelname"
+    echo "$modelpath"
+}
+

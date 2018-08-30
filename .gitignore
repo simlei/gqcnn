@@ -1,3 +1,7 @@
+# for the customized stuff at DLR:
+/custom
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
